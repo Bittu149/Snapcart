@@ -1,6 +1,7 @@
 'use client'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Leaf } from 'lucide-react'
 import React from 'react'
+import {motion} from 'motion/react'
 type PropType = {
   previousStep: (s: number) => void
 }
@@ -13,7 +14,20 @@ function RegisterForm({previousStep}:PropType) {
             <ArrowLeft className='w-5 h-5'/>
             <span className='font-medium'>Back</span>
         </div>
-        Register Form Page
+    <motion.h1 
+    initial={{
+        y:-10,
+        opacity:0
+    }}
+    animate={{
+        y:0,
+        opacity:1
+    }}
+    transition={{
+        duration:0.6
+    }}
+    className='text-4xl font-extrabold text-green-700 mb-2'>Create Account</motion.h1>
+    <p className='text-gray-600 mb-8 flex items-center'>Join Snapcart today <Leaf className='w-5 h-5 text-green-600'/></p>
     </div>
   )
 }
