@@ -6,7 +6,7 @@ import React, { FormEvent, useState } from "react";
 import Image from "next/image";
 import googleImage from "@/assets/google.png";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -15,6 +15,8 @@ function Login() {
   const [loading, setLoading] = useState(false);
 
   const router = useRouter();
+  const session= useSession()
+  console.log(session)
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();

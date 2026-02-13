@@ -1,67 +1,109 @@
-import NextAuth from "next-auth"
-import Credentials from "next-auth/providers/credentials"
-import connectDb from "./lib/db"
-import bcrypt from "bcryptjs"
-import User from "./models/user.model"
- 
+import NextAuth from "next-auth";
+import Credentials from "next-auth/providers/credentials";
+import Google from "next-auth/providers/google";
+import connectDb from "./lib/db";
+import bcrypt from "bcryptjs";
+import User from "./models/user.model";
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
+
+    // 🔐 Credentials Login
     Credentials({
-       credentials:{
-        email:{label:"email",type:"email"},
-        password:{label:"Password",type:"password"},
-       },
-       async authorize(credentials, request) {
-           
-              await connectDb()
-              const email = credentials.email
-              const password = credentials.password as string
-              const user = await User.findOne({email})
-              if(!user){
-                throw new Error("user does not exist")
-              }
-              const isMatch= await bcrypt.compare(password,user.password)
-              if(!isMatch){
-                throw new Error("incorrect password")
-              }
-              return{
-                id:user._id.toString(),
-                email:user.email,
-                name:user.name,
-                role:user.role
-              }
-           
-       },
-    })
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
+      },
+
+      async authorize(credentials) {
+        if (!credentials) return null;
+
+        const { email, password } = credentials as {
+          email: string;
+          password: string;
+        };
+
+        if (!email || !password) return null;
+
+        await connectDb();
+
+        const user = await User.findOne({ email }).select("+password");
+
+        if (!user) return null;
+
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) return null;
+
+        return {
+          id: user._id.toString(),
+          email: user.email,
+          name: user.name,
+          role: user.role,
+        };
+      },
+    }),
+
+    // 🌍 Google Login
+    Google({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    }),
   ],
-  callbacks:{
-    // token ke andr user ka data dalta hai
-    jwt({token,user}) {
-      if(user){
-        token.id=user.id,
-        token.name=user.name,
-        token.email=user.email
-        token.role=user.role
+
+  callbacks: {
+
+    // 🔥 Google user auto-create in DB
+    async signIn({ user, account }) {
+
+      if (account?.provider === "google") {
+
+        await connectDb();
+
+        let dbUser = await User.findOne({ email: user.email });
+
+        if (!dbUser) {
+          dbUser = await User.create({
+            name: user.name,
+            email: user.email,
+            password: "google-oauth-user", // dummy password
+          });
+        }
+
+        user.id = dbUser._id.toString();
+        user.role = dbUser.role;
       }
-      return token
+
+      return true;
     },
-    session({session,token}) {
-      if(session.user){
-        session.user.id=token.id as string,
-        session.user.name=token.name as string,
-        session.user.email=token.email as string
-        session.user.role=token.role as string
+
+    // 🪙 JWT Token
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+        token.role = user.role;
       }
-      return session
+      return token;
+    },
+
+    // 📦 Session Object
+    async session({ session, token }) {
+      if (session.user) {
+        session.user.id = token.id as string;
+        session.user.role = token.role as string;
+      }
+      return session;
     },
   },
-  pages:{
-    signIn:"/login",
-    error:"/login"
+
+  pages: {
+    signIn: "/login",
+    error: "/login",
   },
-  session:{
-    strategy:"jwt",
-    maxAge:10*24*60*60*1000
+
+  session: {
+    strategy: "jwt",
+    maxAge: 10 * 24 * 60 * 60, // 10 days (seconds)
   },
-  secret:process.env.AUTH_SECRET
-})
+
+  secret: process.env.AUTH_SECRET,
+});
