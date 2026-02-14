@@ -2,21 +2,28 @@
 
 import { EyeIcon, EyeOff, Leaf, Loader2, Lock, LogIn, Mail } from "lucide-react";
 import { motion } from "framer-motion";
-import React, { FormEvent, useState } from "react";
+import React, { FormEvent, useState, useEffect } from "react";
 import Image from "next/image";
 import googleImage from "@/assets/google.png";
 import { useRouter } from "next/navigation";
-import { signIn, useSession } from "next-auth/react";
+import { signIn, signOut, useSession } from "next-auth/react";
 
 function Login() {
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const router = useRouter();
-  const session= useSession()
-  console.log(session)
+  const { data: session } = useSession();
+
+  //  Agar already logged in hai to home bhej do
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.push("/");
+    }
+  }, [session, router]);
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
@@ -26,7 +33,7 @@ function Login() {
       const result = await signIn("credentials", {
         email,
         password,
-        redirect: false, // 🔥 IMPORTANT
+        redirect: false,
       });
 
       if (result?.error) {
@@ -45,8 +52,7 @@ function Login() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen px-6 py-10 bg-white relative">
-      
-      {/* Title */}
+
       <motion.h1
         initial={{ y: -10, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -61,7 +67,6 @@ function Login() {
         <Leaf className="w-5 h-5 text-green-600 ml-2" />
       </p>
 
-      {/* Form */}
       <motion.form
         onSubmit={handleLogin}
         initial={{ opacity: 0 }}
@@ -69,7 +74,8 @@ function Login() {
         transition={{ duration: 0.6 }}
         className="flex flex-col gap-5 w-full max-w-sm"
       >
-        {/* Email */}
+
+    
         <div className="relative">
           <Mail className="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
           <input
@@ -105,8 +111,9 @@ function Login() {
           )}
         </div>
 
-        {/* Login Button */}
+        
         <button
+          type="submit"
           disabled={!formValid || loading}
           className={`w-full font-semibold py-3 rounded-xl transition-all duration-200 shadow-md inline-flex items-center justify-center gap-2 ${
             formValid
@@ -124,18 +131,28 @@ function Login() {
           <span className="flex-1 h-px bg-gray-200"></span>
         </div>
 
-        {/* Google Login */}
         <button
           type="button"
-          onClick={() => signIn("google")}
+          onClick={async () => {
+
+            if (session) {
+              await signOut({ redirect: false });
+            }
+
+            await signIn("google", {
+              callbackUrl: "/",
+              prompt: "select_account",
+            });
+
+          }}
           className="w-full flex items-center justify-center gap-3 border border-gray-300 hover:bg-gray-50 py-3 rounded-xl text-gray-700 font-medium transition-all duration-200"
         >
           <Image src={googleImage} width={20} height={20} alt="google" />
           Continue With Google
         </button>
+
       </motion.form>
 
-      {/* Redirect */}
       <p
         className="cursor-pointer text-gray-600 mt-6 text-sm flex items-center gap-1"
         onClick={() => router.push("/register")}
@@ -144,6 +161,7 @@ function Login() {
         <LogIn className="w-4 h-4" />
         <span className="text-green-600">Sign Up</span>
       </p>
+
     </div>
   );
 }
